@@ -13,23 +13,29 @@ export default function BlogPage({ blog, user, allComments }) {
       return; // Prevent adding empty comments
     }
 
-    await db.collection('blogs').doc(blogid).collection('comments').add({
-      text: myComment,
-      name: user.displayName,
-    });
+    try {
+      // Add a comment to the Firestore collection
+      await db.collection('blogs').doc(blogid).collection('comments').add({
+        text: myComment,
+        name: user.displayName,
+      });
 
-    const commentQuery = await db.collection('blogs').doc(blogid).collection('comments').get();
-    setAllComments(commentQuery.docs.map((docSnap) => docSnap.data()));
-    setMyComment('');
+      // Retrieve and update the comments
+      const commentQuery = await db.collection('blogs').doc(blogid).collection('comments').get();
+      setAllComments(commentQuery.docs.map((docSnap) => docSnap.data()));
+      setMyComment('');
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
   };
 
   const deleteBlog = async () => {
     try {
-      // Delete the blog post
+      // Delete the blog post from Firestore
       await db.collection('blogs').doc(blogid).delete();
-      
-      // Redirect the user to a different page or show a success message
-      router.push('/'); // Redirect to the home page after deletion (adjust the path as needed)
+
+      // Redirect to the home page after deletion
+      router.push('/'); // Adjust the path as needed
     } catch (error) {
       console.error('Error deleting blog:', error);
       // Handle any errors here, such as displaying an error message to the user
@@ -57,11 +63,12 @@ export default function BlogPage({ blog, user, allComments }) {
             Make comment
           </button>
 
-          
-            <button className="btn red " onClick={() => deleteBlog()}>
+          {/* Display the "Delete Blog" button only if the user is the author */}
+          {user.displayName === blog.author && (
+            <button className="btn red" onClick={() => deleteBlog()}>
               Delete Blog
             </button>
-          
+          )}
         </>
       ) : (
         <h3>Please login to make comments</h3>
@@ -95,18 +102,26 @@ export default function BlogPage({ blog, user, allComments }) {
 }
 
 export async function getServerSideProps({ params: { blogid } }) {
-  const result = await db.collection('blogs').doc(blogid).get();
-  const allCommentsSnap = await db.collection('blogs').doc(blogid).collection('comments').get();
+  try {
+    // Retrieve the blog post and its comments from Firestore
+    const result = await db.collection('blogs').doc(blogid).get();
+    const allCommentsSnap = await db.collection('blogs').doc(blogid).collection('comments').get();
 
-  const allComments = allCommentsSnap.docs.map((comDocSnap) => comDocSnap.data());
+    const allComments = allCommentsSnap.docs.map((comDocSnap) => comDocSnap.data());
 
-  return {
-    props: {
-      blog: {
-        ...result.data(),
-        createdAt: result.data().createdAt.toMillis(),
+    return {
+      props: {
+        blog: {
+          ...result.data(),
+          createdAt: result.data().createdAt.toMillis(),
+        },
+        allComments,
       },
-      allComments,
-    },
-  };
+    };
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    return {
+      notFound: true,
+    };
+  }
 }

@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {storage,db,serverTimestamp} from "../Firebase.js"
 
 
-export default function createblog({user}) {
+export default function Createblog({user}) {
     const [title,setTitle] = useState('')
     const [body,setBody] = useState('')
     const [image,setImage] = useState(null)
